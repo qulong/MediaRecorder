@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">MediaRecorderDemo</string>
+    <string name="btnCapture">capture</string>
+</resources>
