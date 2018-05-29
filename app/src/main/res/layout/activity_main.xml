@@ -15,6 +15,7 @@
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"
         android:id="@+id/button_capture"
+        android:longClickable="true"
         android:layout_gravity="bottom"
         android:onClick="onCaptureClick"
         android:text="@string/btnCapture"/>

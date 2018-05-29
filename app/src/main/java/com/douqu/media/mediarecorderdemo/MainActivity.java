@@ -89,7 +89,7 @@ public class MainActivity extends AppCompatActivity {
         releaseCamera();
     }
 
-    private void releaseMediaRecorder(){
+    private void releaseMediaRecorder() {
         if (mMediaRecorder != null) {
             // clear recorder configuration
             mMediaRecorder.reset();
@@ -102,33 +102,56 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private void releaseCamera(){
-        if (mCamera != null){
+    private void releaseCamera() {
+        if (mCamera != null) {
             // release the camera for other applications
             mCamera.release();
             mCamera = null;
         }
     }
 
-    private boolean prepareVideoRecorder(){
+    private boolean prepareVideoRecorder() {
 
         // BEGIN_INCLUDE (configure_preview)
-        mCamera = CameraHelper.getDefaultCameraInstance();
+        mCamera = CameraHelper.getDefaultBackFacingCameraInstance();
+//        mCamera = CameraHelper.getDefaultCameraInstance();
+        mCamera.setDisplayOrientation(90);// 将预览效果旋转90度
+//        recorder.setOrientationHint(90); // 将获得的视频结果旋转90度
 
         // We need to make sure that our preview and recording video size are supported by the
         // camera. Query camera to find all the sizes and choose the optimal size given the
         // dimensions of our preview surface.
         Camera.Parameters parameters = mCamera.getParameters();
+
+        // 自动对焦
+        List<String> focusModes = parameters.getSupportedFocusModes();
+        if (focusModes != null) {
+            for (String mode : focusModes) {
+                if (mode.contains("continuous-video")) {
+                    parameters.setFocusMode("continuous-video");
+                    break;
+                }
+            }
+        }
         List<Camera.Size> mSupportedPreviewSizes = parameters.getSupportedPreviewSizes();
         List<Camera.Size> mSupportedVideoSizes = parameters.getSupportedVideoSizes();
         Camera.Size optimalSize = CameraHelper.getOptimalVideoSize(mSupportedVideoSizes,
-                mSupportedPreviewSizes, mPreview.getWidth(), mPreview.getHeight());
-
+                mSupportedPreviewSizes,mPreview.getWidth(),mPreview.getHeight());
+        Log.e("width", "mPreview" + mPreview.getWidth());
+        Log.e("width", "mPreview" + mPreview.getHeight());
         // Use the same size for recording profile.
-        CamcorderProfile profile = CamcorderProfile.get(CamcorderProfile.QUALITY_HIGH);
-        profile.videoFrameWidth = optimalSize.width;
-        profile.videoFrameHeight = optimalSize.height;
+        //QUALITY_LOW不可用
+//int[] quality={CamcorderProfile.QUALITY_TIME_LAPSE_720P,CamcorderProfile.QUALITY_TIME_LAPSE_1080P};
 
+
+//        CamcorderProfile.hasProfile()
+
+        //QUALITY_720P  QUALITY_480P
+        CamcorderProfile profile = CamcorderProfile.get(CamcorderProfile.QUALITY_720P);//QUALITY_HIGH
+        profile.videoFrameWidth = optimalSize.width;//720 x 480
+        profile.videoFrameHeight = optimalSize.height;
+        Log.e("width", "w" + optimalSize.width);
+        Log.e("width", "h" + optimalSize.height);
         // likewise for the camera object itself.
         parameters.setPreviewSize(profile.videoFrameWidth, profile.videoFrameHeight);
         mCamera.setParameters(parameters);
@@ -151,7 +174,7 @@ public class MainActivity extends AppCompatActivity {
         mMediaRecorder.setCamera(mCamera);
 
         // Step 2: Set sources
-        mMediaRecorder.setAudioSource(MediaRecorder.AudioSource.DEFAULT );
+        mMediaRecorder.setAudioSource(MediaRecorder.AudioSource.DEFAULT);
         mMediaRecorder.setVideoSource(MediaRecorder.VideoSource.CAMERA);
 
         // Step 3: Set a CamcorderProfile (requires API Level 8 or higher)
