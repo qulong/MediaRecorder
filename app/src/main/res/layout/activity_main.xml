@@ -6,17 +6,65 @@
     android:layout_height="match_parent"
     tools:context="com.douqu.media.mediarecorderdemo.MainActivity">
 
-    <TextureView
-        android:layout_width="fill_parent"
-        android:layout_height="wrap_content"
-        android:id="@+id/surface_view" />
+    <SurfaceView
+        android:id="@+id/surface_view"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
 
-    <Button
-        android:layout_width="fill_parent"
+    <!--<TextureView-->
+        <!--android:id="@+id/surface_view"-->
+        <!--android:layout_width="fill_parent"-->
+        <!--android:layout_height="match_parent" />-->
+
+    <ProgressBar
+        android:id="@+id/media_actions_bar"
+        style="@style/mProgress_horizontal_media"
+        android:layout_width="match_parent"
+        android:layout_height="2dp"
+        android:layout_marginLeft="10dp"
+        android:layout_marginRight="10dp"
+        android:layout_marginTop="12dp"
+        android:max="100"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <TextView
+        android:id="@+id/media_recorder_seconds"
+        android:layout_width="70dp"
+        android:layout_height="28dp"
+        android:layout_marginBottom="20dp"
+        android:textSize="13sp"
+        android:gravity="center"
+        android:text="15秒"
+        app:layout_constraintBottom_toTopOf="@id/media_recorder_bottom"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent" />
+
+    <LinearLayout
+        android:id="@+id/media_recorder_bottom"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:id="@+id/button_capture"
-        android:longClickable="true"
-        android:layout_gravity="bottom"
-        android:onClick="onCaptureClick"
-        android:text="@string/btnCapture"/>
+        android:gravity="center"
+        android:paddingBottom="40dp"
+        app:layout_constraintBottom_toBottomOf="parent">
+
+        <ImageView
+            android:id="@+id/button_cancel"
+            android:layout_width="60dp"
+            android:layout_height="60dp"
+            android:background="@mipmap/media_recorder_cancel_btn"
+            android:text="@string/btnCapture" />
+
+        <TextView
+            android:id="@+id/button_capture"
+            android:layout_width="80dp"
+            android:layout_height="80dp"
+            android:background="@mipmap/media_recorder_btn" />
+
+        <ImageView
+            android:id="@+id/button_ok"
+            android:layout_width="60dp"
+            android:layout_height="60dp"
+            android:background="@mipmap/media_recorder_ok_btn"
+            android:text="@string/btnCapture" />
+    </LinearLayout>
 </android.support.constraint.ConstraintLayout>
