@@ -3,7 +3,6 @@ package com.douqu.media.mediarecorderdemo;
 import android.hardware.Camera;
 import android.media.CamcorderProfile;
 import android.media.MediaRecorder;
-import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
@@ -92,10 +91,10 @@ public class MainActivity extends AppCompatActivity implements SurfaceHolder.Cal
         cancelBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-//                cancelBtn.setVisibility(View.GONE);
-//                okBtn.setVisibility(View.GONE);
-//                captureButton.setVisibility(View.VISIBLE);
-//                mProgressBar.setProgress(0);
+                cancelBtn.setVisibility(View.GONE);
+                okBtn.setVisibility(View.GONE);
+                captureButton.setVisibility(View.VISIBLE);
+                mProgressBar.setProgress(0);
             }
         });
         okBtn.setOnClickListener(new View.OnClickListener() {
@@ -190,45 +189,62 @@ public class MainActivity extends AppCompatActivity implements SurfaceHolder.Cal
         return true;
     }
 
-    private boolean initSaveMedia() {
-        // BEGIN_INCLUDE (configure_media_recorder)
-        mMediaRecorder = new MediaRecorder();
-        mMediaRecorder.setOrientationHint(90);
-        // Step 1: Unlock and set camera to MediaRecorder
-        mCamera.unlock();
-        mMediaRecorder.setCamera(mCamera);
-
-        // Step 2: Set sources
-        mMediaRecorder.setAudioSource(MediaRecorder.AudioSource.DEFAULT);
-        mMediaRecorder.setVideoSource(MediaRecorder.VideoSource.CAMERA);
-
-        // Step 3: Set a CamcorderProfile (requires API Level 8 or higher)
-        CamcorderProfile profile = CamcorderProfile.get(CamcorderProfile.QUALITY_720P);//QUALITY_HIGH
-        profile.videoFrameWidth = optimalSize.width;//可以改变存储视频的宽高
-        profile.videoFrameHeight = optimalSize.height;
-        mMediaRecorder.setProfile(profile);
-
-        // Step 4: Set output file
-        mOutputFile = CameraHelper.getOutputMediaFile(CameraHelper.MEDIA_TYPE_VIDEO);
-        if (mOutputFile == null) {
-            return false;
-        }
-        mMediaRecorder.setOutputFile(mOutputFile.getPath());
-        // END_INCLUDE (configure_media_recorder)
-
-        // Step 5: Prepare configured MediaRecorder
+    /**
+     * 录制前，初始化
+     */
+    private void initRecord() {
         try {
+
+            if (mMediaRecorder == null) {
+                mMediaRecorder = new MediaRecorder();
+
+            }
+            if (mCamera != null) {
+                mCamera.unlock();
+                mMediaRecorder.setCamera(mCamera);
+            }
+//            mMediaRecorder.setVideoFrameRate(25);
+            mMediaRecorder.setAudioSource(MediaRecorder.AudioSource.DEFAULT);
+            mMediaRecorder.setVideoSource(MediaRecorder.VideoSource.CAMERA);// 视频源
+
+            // Use the same size for recording profile.
+            CamcorderProfile mProfile = CamcorderProfile.get(CamcorderProfile.QUALITY_720P);
+            mProfile.videoFrameWidth = optimalSize.width;
+            mProfile.videoFrameHeight = optimalSize.height;
+
+            mMediaRecorder.setProfile(mProfile);
+            //该设置是为了抽取视频的某些帧，真正录视频的时候，不要设置该参数
+//            mMediaRecorder.setCaptureRate(mFpsRange.get(0)[0]);//获取最小的每一秒录制的帧数
+            // Step 4: Set output file
+            mOutputFile = CameraHelper.getOutputMediaFile(CameraHelper.MEDIA_TYPE_VIDEO);
+
+            mMediaRecorder.setOutputFile(mOutputFile.getPath());
+            // END_INCLUDE (configure_media_recorder)
             mMediaRecorder.prepare();
-        } catch (IllegalStateException e) {
-            Log.d(TAG, "IllegalStateException preparing MediaRecorder: " + e.getMessage());
-            releaseMediaRecorder();
-            return false;
-        } catch (IOException e) {
-            Log.d(TAG, "IOException preparing MediaRecorder: " + e.getMessage());
-            releaseMediaRecorder();
-            return false;
+            mMediaRecorder.start();
+            isRecording = true;
+        } catch (Exception e) {
+            e.printStackTrace();
+            releaseRecord();
         }
-        return true;
+    }
+
+    /**
+     * 释放资源
+     */
+    private void releaseRecord() {
+        if (mMediaRecorder != null) {
+            mMediaRecorder.setPreviewDisplay(null);
+            mMediaRecorder.setOnErrorListener(null);
+            try {
+                mMediaRecorder.release();
+            } catch (IllegalStateException e) {
+                e.printStackTrace();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+        mMediaRecorder = null;
     }
 
     @Override
@@ -238,48 +254,44 @@ public class MainActivity extends AppCompatActivity implements SurfaceHolder.Cal
 
     @Override
     public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
-        if (prepareVideoRecorder(width, height)) {
-            mCamera.startPreview();
+
+        if (mCamera != null) {
+            freeCameraResource();
+        }
+
+        try {
+            mCamera = CameraHelper.getDefaultBackFacingCameraInstance();
+            if (mCamera == null)
+                return;
+            mCamera.setDisplayOrientation(90);
+            mCamera.setPreviewDisplay(mSurfaceHolder);
+            parameters = mCamera.getParameters();// 获得相机参数
+
+            List<Camera.Size> mSupportedPreviewSizes = parameters.getSupportedPreviewSizes();
+            List<Camera.Size> mSupportedVideoSizes = parameters.getSupportedVideoSizes();
+            optimalSize = CameraHelper.getOptimalVideoSize(mSupportedVideoSizes,
+                    mSupportedPreviewSizes, height, width);
+
+            parameters.setPreviewSize(optimalSize.width, optimalSize.height); // 设置预览图像大小
+
+//            parameters.set("orientation", "portrait");
+            List<String> focusModes = parameters.getSupportedFocusModes();
+            if (focusModes.contains("continuous-video")) {
+                parameters.setFocusMode(Camera.Parameters.FOCUS_MODE_CONTINUOUS_VIDEO);
+            }
+//            mFpsRange =  parameters.getSupportedPreviewFpsRange();
+
+            mCamera.setParameters(parameters);// 设置相机参数
+            mCamera.startPreview();// 开始预览
+
+        } catch (Exception io) {
+            io.printStackTrace();
         }
     }
 
     @Override
     public void surfaceDestroyed(SurfaceHolder holder) {
         releaseCamera();
-    }
-
-    /**
-     * Asynchronous task for preparing the {@link android.media.MediaRecorder} since it's a long blocking
-     * operation.
-     */
-    class MediaPrepareTask extends AsyncTask<Void, Void, Boolean> {
-
-        @Override
-        protected Boolean doInBackground(Void... voids) {
-            // initialize video camera
-            if (initSaveMedia()) {
-                // Camera is available and unlocked, MediaRecorder is prepared,
-                // now you can start recording
-                mMediaRecorder.start();
-
-                isRecording = true;
-            } else {
-                // prepare didn't work, release the camera
-                releaseMediaRecorder();
-                return false;
-            }
-            return true;
-        }
-
-        @Override
-        protected void onPostExecute(Boolean result) {
-            if (!result) {
-                MainActivity.this.finish();
-            }
-            // inform the user that recording has started
-            setCaptureButtonText(false);
-
-        }
     }
 
     /**
@@ -290,12 +302,7 @@ public class MainActivity extends AppCompatActivity implements SurfaceHolder.Cal
         cancelBtn.setVisibility(View.GONE);
         okBtn.setVisibility(View.GONE);
         try {
-            // BEGIN_INCLUDE(prepare_start_media_recorder)
-
-            new MediaPrepareTask().execute(null, null, null);
-
-            // END_INCLUDE(prepare_start_media_recorder)
-
+            initRecord();
             mTimeCount = 0;// 时间计数器重新赋值
             mTimer = new Timer();
             timerTask = new TimerTask() {
@@ -356,20 +363,21 @@ public class MainActivity extends AppCompatActivity implements SurfaceHolder.Cal
             // stop recording and release camera
             try {
                 mMediaRecorder.stop();  // stop the recording
+                mMediaRecorder.reset();
             } catch (RuntimeException e) {
                 // RuntimeException is thrown when stop() is called immediately after start().
                 // In this case the output file is not properly constructed ans should be deleted.
                 Log.d(TAG, "RuntimeException: stop() is called immediately after start()");
                 //noinspection ResultOfMethodCallIgnored
-                mOutputFile.delete();
+//                mOutputFile.delete();
             }
-            releaseMediaRecorder(); // release the MediaRecorder object
-            mCamera.lock();         // take camera access back from MediaRecorder
+//            releaseMediaRecorder(); // release the MediaRecorder object
+//            mCamera.lock();         // take camera access back from MediaRecorder
 
             // inform the user that recording has stopped
             setCaptureButtonText(true);
             isRecording = false;
-            releaseCamera();
+//            releaseCamera();
             // END_INCLUDE(stop_release_media_recorder)
 
         }
